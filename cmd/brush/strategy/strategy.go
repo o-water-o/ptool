@@ -28,7 +28,7 @@ const (
 	DELETE_TORRENT_IMMEDIATELY_SCORE     = float64(99999)
 	RESUME_TORRENTS_FREE_DISK_SPACE_TIER = int64(5 * 1024 * 1024 * 1024)  // 5GB
 	DELETE_TORRENTS_FREE_DISK_SPACE_TIER = int64(10 * 1024 * 1024 * 1024) // 10GB
-	DELETE_TORRENT_CHECK_TIMESPTAMP      = int64(12 * 60 * 60)
+	DELETE_TORRENT_CHECK_TIMESPTAMP      = int64(6 * 60 * 60)
 )
 
 type BrushSiteOptionStruct struct {
@@ -331,9 +331,13 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 			torrent.Meta["stt"] > 0 &&
 			siteOption.Now-torrent.Meta["stt"] >= STALL_TORRENT_DELETEION_TIMESPAN {
 			shouldDelete = true
-		} else if siteOption.Now-torrent.Meta["sct"] >= DELETE_TORRENT_CHECK_TIMESPTAMP && torrent.Ratio < clientOption.MinRatio {
+		} else if siteOption.Now-torrent.Atime >= DELETE_TORRENT_CHECK_TIMESPTAMP && torrent.Ratio < clientOption.MinRatio {
 			shouldDelete = true
 		}
+		if siteOption.Now-torrent.Atime >= DELETE_TORRENT_CHECK_TIMESPTAMP+3600 && torrent.Ratio > clientOption.MinRatio && torrent.UploadSpeed == 0 {
+			shouldDelete = true
+		}
+
 		if !shouldDelete {
 			continue
 		}
