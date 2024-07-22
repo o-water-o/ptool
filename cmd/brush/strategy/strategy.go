@@ -2,6 +2,7 @@ package strategy
 
 import (
 	"fmt"
+	"github.com/sagan/ptool/cmd/brush/brush_store"
 	"math"
 	"sort"
 
@@ -91,6 +92,7 @@ type candidateTorrentStruct struct {
 	PredictionUploadSpeed int64
 	Score                 float64
 	Meta                  map[string]int64
+	Hash                  string
 }
 
 type candidateClientTorrentStruct struct {
@@ -184,6 +186,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 				PredictionUploadSpeed: predictionUploadSpeed,
 				Score:                 score,
 				Meta:                  map[string]int64{},
+				Hash:                  siteTorrent.InfoHash,
 			}
 			if siteTorrent.DiscountEndTime > 0 {
 				candidateTorrent.Meta["dcet"] = siteTorrent.DiscountEndTime
@@ -321,9 +324,14 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 
 	// @todo: use Dynamic Programming to better find torrents suitable for delete
 	// delete torrents
+
+	torrentRecordManager := brush_store.NewTorrentRecordManager(brush_store.BrushStoreDBManagerGlobal.GetDB())
+	// 删除大于1天 标记的删除名单
+	torrentRecordManager.DeleteMarkRecords(brush_store.DeleteTorrent, 2)
 	for _, deleteTorrent := range deleteCandidateTorrents {
 		torrent := clientTorrentsMap[deleteTorrent.InfoHash].Torrent
 		shouldDelete := false
+		var remark string
 		if deleteTorrent.Score >= DELETE_TORRENT_IMMEDIATELY_SCORE ||
 			(freespace >= 0 && freespace <= clientOption.MinDiskSpace && freespace+freespaceChange <= freespaceTarget) {
 			shouldDelete = true
@@ -331,10 +339,13 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 			torrent.Meta["stt"] > 0 &&
 			siteOption.Now-torrent.Meta["stt"] >= STALL_TORRENT_DELETEION_TIMESPAN {
 			shouldDelete = true
-		} else if siteOption.Now-torrent.Atime >= DELETE_TORRENT_CHECK_TIMESPTAMP && torrent.Ratio < clientOption.MinRatio {
-			shouldDelete = true
 		}
-		if siteOption.Now-torrent.Atime >= DELETE_TORRENT_CHECK_TIMESPTAMP+3600 && torrent.Ratio > clientOption.MinRatio && torrent.UploadSpeed == 0 {
+		// 标记慢速种子
+		if torrent.UploadSpeed/1024 < 100 {
+			torrentRecordManager.CreateSlowTorrentRecord(torrent.InfoHash, torrent.Name)
+		}
+		// 大于指定次数进行删除
+		if slowCount := torrentRecordManager.GetSlowTorrentCountByHash(torrent.InfoHash); slowCount > 100 {
 			shouldDelete = true
 		}
 
@@ -346,6 +357,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 			Name:     torrent.Name,
 			Msg:      deleteTorrent.Msg,
 		})
+		torrentRecordManager.CreateDeleteRecord(torrent.InfoHash, torrent.Name, torrent.TrackerDomain, remark)
 		freespaceChange += torrent.SizeCompleted
 		estimateUploadSpeed -= torrent.UploadSpeed
 		clientTorrentsMap[torrent.InfoHash].DeleteFlag = true
@@ -479,6 +491,10 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 			added < siteOption.AllowAddTorrents {
 			candidateTorrent := candidateTorrents[0]
 			candidateTorrents = candidateTorrents[1:]
+			// 判断该种子是否删除过，删除过的不添加
+			if tmpRecord := torrentRecordManager.IsDeletedRecord(candidateTorrent.Hash); tmpRecord {
+				continue
+			}
 			result.AddTorrents = append(result.AddTorrents, AlgorithmAddTorrent{
 				DownloadUrl: candidateTorrent.DownloadUrl,
 				Name:        candidateTorrent.Name,

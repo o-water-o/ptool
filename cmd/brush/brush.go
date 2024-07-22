@@ -2,6 +2,7 @@ package brush
 
 import (
 	"fmt"
+	"github.com/sagan/ptool/cmd/brush/brush_store"
 	"math/rand"
 	"path/filepath"
 
@@ -74,6 +75,8 @@ func brush(cmd *cobra.Command, args []string) (err error) {
 			log.Warnf("Failed to create stats db: %v.", err)
 		}
 	}
+	// 数据库初始化
+	brush_store.BrushStoreDBManagerGlobal = brush_store.NewBrushStoreDBManager()
 
 	for i, sitename := range sitenames {
 		siteInstance, err := site.CreateSite(sitename)
