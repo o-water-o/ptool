@@ -186,7 +186,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 				PredictionUploadSpeed: predictionUploadSpeed,
 				Score:                 score,
 				Meta:                  map[string]int64{},
-				Hash:                  siteTorrent.InfoHash,
+				Hash:                  siteTorrent.ID(),
 			}
 			if siteTorrent.DiscountEndTime > 0 {
 				candidateTorrent.Meta["dcet"] = siteTorrent.DiscountEndTime
@@ -492,7 +492,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 			candidateTorrent := candidateTorrents[0]
 			candidateTorrents = candidateTorrents[1:]
 			// 判断该种子是否删除过，删除过的不添加
-			if tmpRecord := torrentRecordManager.IsDeletedRecord(candidateTorrent.Hash); tmpRecord {
+			if tmpRecord := torrentRecordManager.IsDeletedRecord(candidateTorrent.Name); tmpRecord {
 				continue
 			}
 			result.AddTorrents = append(result.AddTorrents, AlgorithmAddTorrent{

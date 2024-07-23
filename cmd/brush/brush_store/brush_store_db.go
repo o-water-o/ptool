@@ -21,6 +21,7 @@ type TorrentRecordCategory int
 const (
 	DeleteTorrent TorrentRecordCategory = 1
 	SlowTorrent   TorrentRecordCategory = 2
+	AddTorrent    TorrentRecordCategory = 3
 )
 
 // TorrentRecord 种子记录
@@ -100,9 +101,9 @@ func (m *TorrentRecordManager) GetByHash(hash string) *TorrentRecord {
 	}
 	return &foundRecord
 }
-func (m *TorrentRecordManager) IsDeletedRecord(hash string) bool {
+func (m *TorrentRecordManager) IsDeletedRecord(name string) bool {
 	var foundRecords *[]TorrentRecord
-	result := m.db.Where(TorrentRecord{Hash: hash, Category: DeleteTorrent}).Find(&foundRecords)
+	result := m.db.Where(map[string]interface{}{"Name": name, "Category": DeleteTorrent}).Find(&foundRecords)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return true
