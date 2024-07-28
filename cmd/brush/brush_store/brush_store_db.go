@@ -26,13 +26,14 @@ const (
 
 // TorrentRecord 种子记录
 type TorrentRecord struct {
-	gorm.Model
+	ID            string `gorm:"primarykey"`
 	Hash          string `comment:"种子hash"`
 	Category      TorrentRecordCategory
 	Name          string `comment:"种子名称"`
 	TrackerDomain string
 	Count         int64 `comment:"计数"`
 	Remark        string
+	gorm.Model
 }
 
 // BrushStoreDBManager 数据库管理类
@@ -76,6 +77,14 @@ func (m *TorrentRecordManager) CreateDeleteRecord(hash, name, trackerDomain, rem
 	newRecord := TorrentRecord{Hash: hash, Name: name, TrackerDomain: trackerDomain, Remark: remark, Category: DeleteTorrent}
 	m.db.Create(&newRecord)
 }
+func (m *TorrentRecordManager) CreateTorrentRecord(siteId, hash, name string) {
+	newRecord := TorrentRecord{Hash: hash, Name: name, Category: AddTorrent, ID: siteId}
+	result := m.db.Create(&newRecord)
+	if result.Error != nil {
+		log.Error(result.Error)
+	}
+
+}
 func (m *TorrentRecordManager) CreateSlowTorrentRecord(hash, name string) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -85,7 +94,8 @@ func (m *TorrentRecordManager) CreateSlowTorrentRecord(hash, name string) {
 			Hash: hash, Name: name, Category: SlowTorrent, Count: 1}
 		m.db.Create(&newRecord)
 	} else {
-		m.db.Update(hash, TorrentRecord{Count: record.Count + 1})
+		torrentRecord := TorrentRecord{}
+		m.db.Model(&torrentRecord).Where(map[string]interface{}{"hash": hash}).Updates(map[string]interface{}{"count": record.Count + 1})
 	}
 }
 

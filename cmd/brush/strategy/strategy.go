@@ -59,6 +59,7 @@ type AlgorithmAddTorrent struct {
 	Name        string
 	Meta        map[string]int64
 	Msg         string
+	SiteId      string
 }
 
 type AlgorithmModifyTorrent struct {
@@ -92,7 +93,7 @@ type candidateTorrentStruct struct {
 	PredictionUploadSpeed int64
 	Score                 float64
 	Meta                  map[string]int64
-	Hash                  string
+	ID                    string
 }
 
 type candidateClientTorrentStruct struct {
@@ -186,7 +187,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 				PredictionUploadSpeed: predictionUploadSpeed,
 				Score:                 score,
 				Meta:                  map[string]int64{},
-				Hash:                  siteTorrent.ID(),
+				ID:                    siteTorrent.IDFull(),
 			}
 			if siteTorrent.DiscountEndTime > 0 {
 				candidateTorrent.Meta["dcet"] = siteTorrent.DiscountEndTime
@@ -198,12 +199,16 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 		return candidateTorrents[i].Score > candidateTorrents[j].Score
 	})
 
+	torrentRecordManager := brush_store.NewTorrentRecordManager(brush_store.BrushStoreDBManagerGlobal.GetDB())
 	// mark torrents
 	for _, torrent := range clientTorrents {
 		if countAsDownloading(torrent, siteOption.Now) {
 			cntDownloadingTorrents++
 		}
-
+		// 标记慢速种子
+		if torrent.UploadSpeed/1024 < 100 {
+			torrentRecordManager.CreateSlowTorrentRecord(torrent.InfoHash, torrent.Name)
+		}
 		// mark torrents that discount time ends as stall
 		if torrent.Meta["dcet"] > 0 && torrent.Meta["dcet"]-siteOption.Now <= 3600 && torrent.Ctime <= 0 {
 			if canStallTorrent(torrent) {
@@ -244,6 +249,14 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 				})
 				clientTorrentsMap[torrent.InfoHash].DeleteCandidateFlag = true
 			}
+		} else if slowCount := torrentRecordManager.GetSlowTorrentCountByHash(torrent.InfoHash); slowCount > 50 {
+			// 大于指定次数进行删除
+			deleteCandidateTorrents = append(deleteCandidateTorrents, candidateClientTorrentStruct{
+				InfoHash:    torrent.InfoHash,
+				Score:       DELETE_TORRENT_IMMEDIATELY_SCORE,
+				FutureValue: 0,
+				Msg:         "torrent in error state",
+			})
 		} else if torrent.UploadSpeed < clientOption.SlowUploadSpeedTier {
 			// check slow torrents, add it to watch list first time and mark as deleteCandidate second time
 			if torrent.Meta["sct"] > 0 { // second encounter on slow torrent
@@ -325,7 +338,6 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 	// @todo: use Dynamic Programming to better find torrents suitable for delete
 	// delete torrents
 
-	torrentRecordManager := brush_store.NewTorrentRecordManager(brush_store.BrushStoreDBManagerGlobal.GetDB())
 	// 删除大于1天 标记的删除名单
 	torrentRecordManager.DeleteMarkRecords(brush_store.DeleteTorrent, 2)
 	for _, deleteTorrent := range deleteCandidateTorrents {
@@ -338,14 +350,6 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 		} else if torrent.Ctime <= 0 &&
 			torrent.Meta["stt"] > 0 &&
 			siteOption.Now-torrent.Meta["stt"] >= STALL_TORRENT_DELETEION_TIMESPAN {
-			shouldDelete = true
-		}
-		// 标记慢速种子
-		if torrent.UploadSpeed/1024 < 100 {
-			torrentRecordManager.CreateSlowTorrentRecord(torrent.InfoHash, torrent.Name)
-		}
-		// 大于指定次数进行删除
-		if slowCount := torrentRecordManager.GetSlowTorrentCountByHash(torrent.InfoHash); slowCount > 100 {
 			shouldDelete = true
 		}
 
@@ -500,6 +504,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 				Name:        candidateTorrent.Name,
 				Meta:        candidateTorrent.Meta,
 				Msg:         fmt.Sprintf("new torrrent of score %.0f", candidateTorrent.Score),
+				SiteId:      candidateTorrent.ID,
 			})
 			added++
 			cntTorrents++

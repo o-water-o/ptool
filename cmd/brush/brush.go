@@ -77,6 +77,7 @@ func brush(cmd *cobra.Command, args []string) (err error) {
 	}
 	// 数据库初始化
 	brush_store.BrushStoreDBManagerGlobal = brush_store.NewBrushStoreDBManager()
+	torrentRecordManager := brush_store.NewTorrentRecordManager(brush_store.BrushStoreDBManagerGlobal.GetDB())
 
 	for i, sitename := range sitenames {
 		siteInstance, err := site.CreateSite(sitename)
@@ -273,6 +274,7 @@ func brush(cmd *cobra.Command, args []string) (err error) {
 				log.Printf("torrent rootpath %s existing in client. skip\n", tinfo.RootDir)
 				continue
 			}
+			torrentRecordManager.CreateTorrentRecord(torrent.SiteId, tinfo.InfoHash, torrent.Name)
 			log.Printf("torrent info: %s\n", tinfo.InfoHash)
 			cndAddTorrents++
 			tags := []string{client.GenerateTorrentTagFromSite(siteInstance.GetName())}

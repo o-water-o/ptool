@@ -125,6 +125,9 @@ func (torrent *Torrent) ID() string {
 		return sitename
 	}
 }
+func (torrent *Torrent) IDFull() string {
+	return torrent.Id
+}
 
 func (torrent *Torrent) HasTag(tag string) bool {
 	return slices.ContainsFunc(torrent.Tags, func(t string) bool {
