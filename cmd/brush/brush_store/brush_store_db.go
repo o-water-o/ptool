@@ -73,9 +73,12 @@ func NewTorrentRecordManager(db *gorm.DB) *TorrentRecordManager {
 	return &TorrentRecordManager{db: db}
 }
 
-func (m *TorrentRecordManager) CreateDeleteRecord(hash, name, trackerDomain, remark string) {
-	newRecord := TorrentRecord{Hash: hash, Name: name, TrackerDomain: trackerDomain, Remark: remark, Category: DeleteTorrent}
-	m.db.Create(&newRecord)
+func (m *TorrentRecordManager) MarkDeleteRecord(hash string) {
+	record := TorrentRecord{}
+	result := m.db.Model(&record).Where("hash=?", hash).Updates(map[string]interface{}{"category": DeleteTorrent})
+	if result.Error != nil {
+		log.Error(result.Error)
+	}
 }
 func (m *TorrentRecordManager) CreateTorrentRecord(siteId, hash, name string) {
 	newRecord := TorrentRecord{Hash: hash, Name: name, Category: AddTorrent, ID: siteId}
@@ -100,30 +103,32 @@ func (m *TorrentRecordManager) CreateSlowTorrentRecord(hash, name string) {
 }
 
 // GetByHash 根据 Hash 查询记录
-func (m *TorrentRecordManager) GetByHash(hash string) *TorrentRecord {
-	var foundRecord TorrentRecord
+func (m *TorrentRecordManager) GetByHash(hash string) (foundRecord *TorrentRecord) {
 	result := m.db.First(&foundRecord, "Hash = ?", hash)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			return nil
-		}
-		log.Fatalf("failed to query record: %v", result.Error)
+	if result.Error == nil {
+		return foundRecord
 	}
-	return &foundRecord
+	if result.Error != nil && errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	log.Error(result.Error)
+	return
 }
-func (m *TorrentRecordManager) IsDeletedRecord(name string) bool {
+func (m *TorrentRecordManager) IsDeletedRecord(Id string) bool {
 	var foundRecords *[]TorrentRecord
-	result := m.db.Where(map[string]interface{}{"Name": name, "Category": DeleteTorrent}).Find(&foundRecords)
+	result := m.db.Where(map[string]interface{}{"id": Id, "Category": DeleteTorrent}).Find(&foundRecords)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return true
 		}
 		panic(result.Error)
 	}
-	if result.RowsAffected > 0 {
+	if len(*foundRecords) > 0 {
 		return true
+	} else {
+		return false
 	}
-	return false
+
 }
 func (m *TorrentRecordManager) GetSlowTorrentCountByHash(hash string) int64 {
 	byHash := m.GetByHash(hash)

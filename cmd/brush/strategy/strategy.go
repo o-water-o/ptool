@@ -343,7 +343,6 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 	for _, deleteTorrent := range deleteCandidateTorrents {
 		torrent := clientTorrentsMap[deleteTorrent.InfoHash].Torrent
 		shouldDelete := false
-		var remark string
 		if deleteTorrent.Score >= DELETE_TORRENT_IMMEDIATELY_SCORE ||
 			(freespace >= 0 && freespace <= clientOption.MinDiskSpace && freespace+freespaceChange <= freespaceTarget) {
 			shouldDelete = true
@@ -361,7 +360,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 			Name:     torrent.Name,
 			Msg:      deleteTorrent.Msg,
 		})
-		torrentRecordManager.CreateDeleteRecord(torrent.InfoHash, torrent.Name, torrent.TrackerDomain, remark)
+		torrentRecordManager.MarkDeleteRecord(torrent.InfoHash)
 		freespaceChange += torrent.SizeCompleted
 		estimateUploadSpeed -= torrent.UploadSpeed
 		clientTorrentsMap[torrent.InfoHash].DeleteFlag = true
@@ -496,7 +495,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 			candidateTorrent := candidateTorrents[0]
 			candidateTorrents = candidateTorrents[1:]
 			// 判断该种子是否删除过，删除过的不添加
-			if tmpRecord := torrentRecordManager.IsDeletedRecord(candidateTorrent.Name); tmpRecord {
+			if tmpRecord := torrentRecordManager.IsDeletedRecord(candidateTorrent.ID); tmpRecord {
 				continue
 			}
 			result.AddTorrents = append(result.AddTorrents, AlgorithmAddTorrent{
