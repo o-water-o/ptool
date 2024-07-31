@@ -98,7 +98,12 @@ func (m *TorrentRecordManager) CreateSlowTorrentRecord(hash, name string) {
 		m.db.Create(&newRecord)
 	} else {
 		torrentRecord := TorrentRecord{}
-		m.db.Model(&torrentRecord).Where(map[string]interface{}{"hash": hash}).Updates(map[string]interface{}{"count": record.Count + 1})
+		countNew := record.Count + 1
+		log.Infof("慢速种子 %s 增加计数 %d", name, countNew)
+		result := m.db.Model(&torrentRecord).Where(map[string]interface{}{"hash": hash}).Updates(map[string]interface{}{"count": countNew})
+		if result.Error != nil {
+			log.Error(result.Error)
+		}
 	}
 }
 
