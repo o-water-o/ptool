@@ -19,9 +19,9 @@ var (
 type TorrentRecordCategory int
 
 const (
-	DeleteTorrent TorrentRecordCategory = 1
+	AddTorrent    TorrentRecordCategory = 1
 	SlowTorrent   TorrentRecordCategory = 2
-	AddTorrent    TorrentRecordCategory = 3
+	DeleteTorrent TorrentRecordCategory = 3
 )
 
 // TorrentRecord 种子记录
@@ -75,7 +75,8 @@ func NewTorrentRecordManager(db *gorm.DB) *TorrentRecordManager {
 
 func (m *TorrentRecordManager) MarkDeleteRecord(hash string) {
 	record := TorrentRecord{}
-	result := m.db.Model(&record).Where("hash=?", hash).Updates(map[string]interface{}{"category": DeleteTorrent})
+	result := m.db.Model(&record).Where("hash=?", hash).Updates(
+		map[string]interface{}{"category": DeleteTorrent, "count": 0})
 	if result.Error != nil {
 		log.Error(result.Error)
 	}
@@ -88,30 +89,42 @@ func (m *TorrentRecordManager) CreateTorrentRecord(siteId, hash, name string) {
 	}
 
 }
-func (m *TorrentRecordManager) CreateSlowTorrentRecord(hash, name string) {
+func (m *TorrentRecordManager) MarkSlowTorrentRecord(hash, name string) {
 	mu.Lock()
 	defer mu.Unlock()
 	record := m.GetByHash(hash)
 	if record == nil {
-		newRecord := TorrentRecord{
-			Hash: hash, Name: name, Category: SlowTorrent, Count: 1}
-		m.db.Create(&newRecord)
-	} else {
-		torrentRecord := TorrentRecord{}
-		countNew := record.Count + 1
-		log.Infof("慢速种子 %s 增加计数 %d", name, countNew)
-		result := m.db.Model(&torrentRecord).Where(map[string]interface{}{"hash": hash}).Updates(map[string]interface{}{"count": countNew})
-		if result.Error != nil {
-			log.Error(result.Error)
-		}
+		log.Warnf("%s %s 不存在该记录，无法标记慢速种子", name, hash)
+		return
 	}
+	torrentRecord := TorrentRecord{}
+	countNew := record.Count + 1
+	log.Infof("慢速种子 %s 增加计数 %d", name, countNew)
+	result := m.db.Model(&torrentRecord).
+		Where(map[string]interface{}{"hash": hash}).
+		Updates(map[string]interface{}{"count": countNew, "category": SlowTorrent})
+	if result.Error != nil {
+		log.Error(result.Error)
+	}
+
 }
 
 // GetByHash 根据 Hash 查询记录
 func (m *TorrentRecordManager) GetByHash(hash string) (foundRecord *TorrentRecord) {
-	result := m.db.First(&foundRecord, "Hash = ?", hash)
+	result := m.db.Where("hash = ?", hash).First(&foundRecord)
+	if result.Error != nil && errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return nil
+	}
 	if result.Error == nil {
 		return foundRecord
+	}
+	log.Error(result.Error)
+	return
+}
+func (m *TorrentRecordManager) GetRecords(query map[string]interface{}) (foundRecords *[]TorrentRecord) {
+	result := m.db.Where(query).Find(&foundRecords)
+	if result.Error == nil {
+		return foundRecords
 	}
 	if result.Error != nil && errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return nil
@@ -121,7 +134,8 @@ func (m *TorrentRecordManager) GetByHash(hash string) (foundRecord *TorrentRecor
 }
 func (m *TorrentRecordManager) IsDeletedRecord(Id string) bool {
 	var foundRecords *[]TorrentRecord
-	result := m.db.Where(map[string]interface{}{"id": Id, "Category": DeleteTorrent}).Find(&foundRecords)
+	oneWeekAgo := time.Now().AddDate(0, 0, -7)
+	result := m.db.Where("created_at <= ? AND id = ?", oneWeekAgo, Id).Find(&foundRecords)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return true
@@ -144,31 +158,10 @@ func (m *TorrentRecordManager) GetSlowTorrentCountByHash(hash string) int64 {
 	}
 }
 
-// UpdateReason 更新记录的 Reason
-func (m *TorrentRecordManager) UpdateByHash(hash string, record TorrentRecord) {
-	result := m.db.First(&record, "Hash = ?", hash)
-	if result.Error != nil {
-		log.Fatalf("failed to query record for update: %v", result.Error)
-		panic(result.Error)
-	}
-	m.db.Model(&record).Where("Hash=?", hash).Updates(record)
-}
-
 // DeleteByHash 根据 Hash 删除记录
 func (m *TorrentRecordManager) DeleteByHash(hash string) {
-	var record TorrentRecord
-	result := m.db.First(&record, "Hash = ?", hash)
+	result := m.db.Where("hash = ?", hash).Delete(&TorrentRecord{})
 	if result.Error != nil {
-		log.Fatalf("failed to query record for delete: %v", result.Error)
-	}
-	m.db.Delete(&record)
-}
-
-func (m *TorrentRecordManager) DeleteMarkRecords(category TorrentRecordCategory, keepDays int64) {
-	daysAgo := time.Now().Add(-48 * time.Hour)
-	record := TorrentRecord{Category: category}
-	result := m.db.Where("created_at < ?", daysAgo).Delete(&record)
-	if result.Error != nil {
-		log.Errorf("删除失败, %v", result.Error)
+		log.Fatalf("failed  delete: %v", result.Error)
 	}
 }

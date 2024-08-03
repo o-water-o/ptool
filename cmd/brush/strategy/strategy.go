@@ -207,7 +207,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 		}
 		// 标记慢速种子
 		if torrent.UploadSpeed/1024 < 100 {
-			torrentRecordManager.CreateSlowTorrentRecord(torrent.InfoHash, torrent.Name)
+			torrentRecordManager.MarkSlowTorrentRecord(torrent.InfoHash, torrent.Name)
 		}
 		// mark torrents that discount time ends as stall
 		if torrent.Meta["dcet"] > 0 && torrent.Meta["dcet"]-siteOption.Now <= 3600 && torrent.Ctime <= 0 {
@@ -338,8 +338,6 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 	// @todo: use Dynamic Programming to better find torrents suitable for delete
 	// delete torrents
 
-	// 删除大于1天 标记的删除名单
-	torrentRecordManager.DeleteMarkRecords(brush_store.DeleteTorrent, 2)
 	for _, deleteTorrent := range deleteCandidateTorrents {
 		torrent := clientTorrentsMap[deleteTorrent.InfoHash].Torrent
 		shouldDelete := false
