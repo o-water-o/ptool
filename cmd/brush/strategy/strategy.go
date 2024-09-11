@@ -51,6 +51,7 @@ type BrushClientOptionStruct struct {
 	MaxTorrents             int64
 	MinRatio                float64
 	DefaultUploadSpeedLimit int64
+	MaxSlowTorrentCount     int64
 }
 
 type AlgorithmAddTorrent struct {
@@ -248,7 +249,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 				})
 				clientTorrentsMap[torrent.InfoHash].DeleteCandidateFlag = true
 			}
-		} else if slowCount := torrentRecordManager.GetSlowTorrentCountByHash(torrent.InfoHash); slowCount > 150 {
+		} else if slowCount := torrentRecordManager.GetSlowTorrentCountByHash(torrent.InfoHash); slowCount > clientOption.MaxSlowTorrentCount {
 			// 大于指定次数进行删除
 			deleteCandidateTorrents = append(deleteCandidateTorrents, candidateClientTorrentStruct{
 				InfoHash:    torrent.InfoHash,
@@ -632,5 +633,6 @@ func GetBrushClientOptions(clientInstance client.Client) *BrushClientOptionStruc
 		MaxTorrents:             clientInstance.GetClientConfig().BrushMaxTorrents,
 		MinRatio:                clientInstance.GetClientConfig().BrushMinRatio,
 		DefaultUploadSpeedLimit: clientInstance.GetClientConfig().BrushDefaultUploadSpeedLimitValue,
+		MaxSlowTorrentCount:     clientInstance.GetClientConfig().MaxSlowTorrentCount,
 	}
 }

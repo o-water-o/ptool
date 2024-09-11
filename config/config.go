@@ -116,8 +116,9 @@ type ClientConfigStruct struct {
 	BrushMinDiskSpaceValue            int64
 	BrushSlowUploadSpeedTierValue     int64
 	BrushDefaultUploadSpeedLimitValue int64
-	QbittorrentNoLogin                bool `yaml:"qbittorrentNoLogin"`  // if set, will NOT send login request
-	QbittorrentNoLogout               bool `yaml:"qbittorrentNoLogout"` // if set, will NOT send logout request
+	QbittorrentNoLogin                bool  `yaml:"qbittorrentNoLogin"`  // if set, will NOT send login request
+	QbittorrentNoLogout               bool  `yaml:"qbittorrentNoLogout"` // if set, will NOT send logout request
+	MaxSlowTorrentCount               int64 `yaml:"maxSlowTorrentCount"`
 }
 
 type SiteConfigStruct struct {
@@ -453,6 +454,9 @@ func Get() *ConfigStruct {
 
 			if client.BrushMinRatio == 0 {
 				client.BrushMinRatio = DEFAULT_CLIENT_BRUSH_MIN_RATION
+			}
+			if client.MaxSlowTorrentCount == 0 {
+				client.MaxSlowTorrentCount = 50
 			}
 
 			assertConfigItemNameIsValid("client", client.Name, client)
