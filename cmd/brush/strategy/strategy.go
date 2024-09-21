@@ -554,60 +554,72 @@ func RateSiteTorrent(siteTorrent *site.Torrent, siteOption *BrushSiteOptionStruc
 		note = "brush excludes matches"
 		return
 	}
+	var (
+		score1 float64
+		score2 float64
+	)
+
+	if siteTorrent.Seeders != 0 {
+		// 下载人数除以做种人数
+		score1 = float64(siteTorrent.Leechers) / float64(siteTorrent.Seeders)
+	}
+	//种子大小 原始单位Bytes
+	score2 = float64(siteTorrent.Size) / (1024 * 1024 * 1024)
+	score = score1*0.7 - score2*0.3
 	// 部分站点定期将旧种重新置顶免费。这类种子仍然可以获得很好的上传速度。
-	if siteOption.Now-siteTorrent.Time <= 86400*30 {
-		if siteOption.Now-siteTorrent.Time >= 86400 {
-			score = 0
-			return
-		} else if siteOption.Now-siteTorrent.Time >= 7200 {
-			if siteTorrent.Leechers < 500 {
-				score = 0
-				return
-			}
-		}
-	}
-
-	predictionUploadSpeed = siteTorrent.Leechers * 100 * 1024
-	if predictionUploadSpeed > siteOption.TorrentUploadSpeedLimit {
-		predictionUploadSpeed = siteOption.TorrentUploadSpeedLimit
-	}
-
-	if siteTorrent.Seeders <= 1 {
-		score = 50
-	} else if siteTorrent.Seeders <= 3 {
-		score = 30
-	} else {
-		score = 10
-	}
-	score += float64(siteTorrent.Leechers)
-
-	score *= siteTorrent.UploadMultiplier
-	if siteTorrent.DownloadMultiplier != 0 {
-		score *= 0.5
-	}
-
-	if siteTorrent.Size <= 1024*1024*1024 {
-		score *= 10
-	} else if siteTorrent.Size <= 1024*1024*1024*10 {
-		score *= 2
-	} else if siteTorrent.Size <= 1024*1024*1024*20 {
-		score *= 1
-	} else if siteTorrent.Size <= 1024*1024*1024*50 {
-		score *= 0.5
-	} else if siteTorrent.Size <= 1024*1024*1024*100 {
-		score *= 0.1
-	} else {
-		// 大包特殊处理
-		if siteTorrent.Leechers >= 1000 {
-			score *= 100
-		} else if siteTorrent.Leechers >= 500 {
-			score *= 50
-		} else if siteTorrent.Leechers >= 100 {
-			score *= 10
-		} else {
-			score *= 0
-		}
-	}
+	//if siteOption.Now-siteTorrent.Time <= 86400*30 {
+	//	if siteOption.Now-siteTorrent.Time >= 86400 {
+	//		score = 0
+	//		return
+	//	} else if siteOption.Now-siteTorrent.Time >= 7200 {
+	//		if siteTorrent.Leechers < 500 {
+	//			score = 0
+	//			return
+	//		}
+	//	}
+	//}
+	//
+	//predictionUploadSpeed = siteTorrent.Leechers * 100 * 1024
+	//if predictionUploadSpeed > siteOption.TorrentUploadSpeedLimit {
+	//	predictionUploadSpeed = siteOption.TorrentUploadSpeedLimit
+	//}
+	//
+	//if siteTorrent.Seeders <= 1 {
+	//	score = 50
+	//} else if siteTorrent.Seeders <= 3 {
+	//	score = 30
+	//} else {
+	//	score = 10
+	//}
+	//score += float64(siteTorrent.Leechers)
+	//
+	//score *= siteTorrent.UploadMultiplier
+	//if siteTorrent.DownloadMultiplier != 0 {
+	//	score *= 0.5
+	//}
+	//
+	//if siteTorrent.Size <= 1024*1024*1024 {
+	//	score *= 10
+	//} else if siteTorrent.Size <= 1024*1024*1024*10 {
+	//	score *= 2
+	//} else if siteTorrent.Size <= 1024*1024*1024*20 {
+	//	score *= 1
+	//} else if siteTorrent.Size <= 1024*1024*1024*50 {
+	//	score *= 0.5
+	//} else if siteTorrent.Size <= 1024*1024*1024*100 {
+	//	score *= 0.1
+	//} else {
+	//	// 大包特殊处理
+	//	if siteTorrent.Leechers >= 1000 {
+	//		score *= 100
+	//	} else if siteTorrent.Leechers >= 500 {
+	//		score *= 50
+	//	} else if siteTorrent.Leechers >= 100 {
+	//		score *= 10
+	//	} else {
+	//		score *= 0
+	//	}
+	//}
 	return
 }
 
