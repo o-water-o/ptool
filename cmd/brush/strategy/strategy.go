@@ -544,8 +544,7 @@ func RateSiteTorrent(siteTorrent *site.Torrent, siteOption *BrushSiteOptionStruc
 		siteTorrent.Size < siteOption.TorrentMinSizeLimit ||
 		siteTorrent.Size > siteOption.TorrentMaxSizeLimit ||
 		(siteTorrent.DiscountEndTime > 0 && siteTorrent.DiscountEndTime-siteOption.Now < 3600) ||
-		(!siteOption.AllowZeroSeeders && siteTorrent.Seeders == 0) ||
-		siteTorrent.Leechers <= siteTorrent.Seeders {
+		(!siteOption.AllowZeroSeeders && siteTorrent.Seeders == 0) {
 		score = 0
 		return
 	}
@@ -559,13 +558,13 @@ func RateSiteTorrent(siteTorrent *site.Torrent, siteOption *BrushSiteOptionStruc
 		score2 float64
 	)
 
-	if siteTorrent.Seeders != 0 {
+	if siteTorrent.Seeders > 1 {
 		// 下载人数除以做种人数
 		score1 = float64(siteTorrent.Leechers) / float64(siteTorrent.Seeders)
 	}
 	//种子大小 原始单位Bytes
 	score2 = float64(siteTorrent.Size) / (1024 * 1024 * 1024)
-	score = score1*0.7 - score2*0.3
+	score = score1 + 0.1/score2
 	// 部分站点定期将旧种重新置顶免费。这类种子仍然可以获得很好的上传速度。
 	//if siteOption.Now-siteTorrent.Time <= 86400*30 {
 	//	if siteOption.Now-siteTorrent.Time >= 86400 {
