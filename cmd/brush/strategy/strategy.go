@@ -558,7 +558,7 @@ func RateSiteTorrent(siteTorrent *site.Torrent, siteOption *BrushSiteOptionStruc
 		score2 float64
 	)
 
-	if siteTorrent.Seeders > 1 {
+	if siteTorrent.Seeders > 0 {
 		// 下载人数除以做种人数
 		score1 = float64(siteTorrent.Leechers) / float64(siteTorrent.Seeders)
 	}
