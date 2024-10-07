@@ -98,8 +98,7 @@ func (m *Site) DownloadTorrentById(id string) (content []byte, filename string, 
 }
 
 func (m *Site) GetLatestTorrents(full bool) ([]*site.Torrent, error) {
-	//modes := []string{TorrentSearchMode_Normal}
-	modes := []string{}
+	modes := []string{TorrentSearchMode_Normal}
 	if full {
 		modes = append(modes, TorrentSearchMode_Adult)
 	}

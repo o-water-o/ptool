@@ -249,7 +249,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 				})
 				clientTorrentsMap[torrent.InfoHash].DeleteCandidateFlag = true
 			}
-		} else if slowCount := torrentRecordManager.GetSlowTorrentCountByHash(torrent.InfoHash); slowCount > clientOption.MaxSlowTorrentCount {
+		} else if slowCount := torrentRecordManager.GetSlowTorrentCountByHash(torrent.InfoHash); float64(slowCount) > (float64(clientOption.MaxSlowTorrentCount) * (torrent.Ratio + 1)) {
 			// 大于指定次数进行删除
 			deleteCandidateTorrents = append(deleteCandidateTorrents, candidateClientTorrentStruct{
 				InfoHash:    torrent.InfoHash,
