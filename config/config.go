@@ -119,6 +119,7 @@ type ClientConfigStruct struct {
 	QbittorrentNoLogin                bool  `yaml:"qbittorrentNoLogin"`  // if set, will NOT send login request
 	QbittorrentNoLogout               bool  `yaml:"qbittorrentNoLogout"` // if set, will NOT send logout request
 	MaxSlowTorrentCount               int64 `yaml:"maxSlowTorrentCount"`
+	MaxTorrentSize                    int64 `yaml:"maxTorrentSize"`
 }
 
 type SiteConfigStruct struct {
@@ -457,6 +458,10 @@ func Get() *ConfigStruct {
 			}
 			if client.MaxSlowTorrentCount == 0 {
 				client.MaxSlowTorrentCount = 50
+			}
+			if client.MaxTorrentSize == 0 {
+				//GB
+				client.MaxTorrentSize = 200 * 1024 * 1024 * 1024
 			}
 
 			assertConfigItemNameIsValid("client", client.Name, client)

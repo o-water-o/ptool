@@ -1,6 +1,8 @@
 package mtorrent
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const (
 	TorrentSearchMode_Normal = "normal"
@@ -88,11 +90,12 @@ func NewTorrentSearchRequest(opts ...TorrentSearchRequestOption) TorrentSearchRe
 }
 
 type TorrentStatus struct {
-	Discount        string `json:"discount"`
-	DiscountEndTime *Time  `json:"discountEndTime"`
-	Leechers        Int64  `json:"leechers"`
-	Seeders         Int64  `json:"seeders"`
-	Status          string `json:"status"`
+	Discount        string                `json:"discount"`
+	DiscountEndTime *Time                 `json:"discountEndTime"`
+	Leechers        Int64                 `json:"leechers"`
+	Seeders         Int64                 `json:"seeders"`
+	Status          string                `json:"status"`
+	MallSingleFree  TorrentMallSingleFree `json:"mallSingleFree"`
 }
 
 type Torrent struct {
@@ -146,4 +149,19 @@ func (r ResponseCode) GetError() error {
 		return fmt.Errorf("response error(%d): %s", r.Code, r.Message)
 	}
 	return nil
+}
+
+// TorrentMallSingleFree 定义了一个与JSON结构匹配的struct
+type TorrentMallSingleFree struct {
+	CreatedDate      *Time  `json:"createdDate"`
+	LastModifiedDate *Time  `json:"lastModifiedDate"`
+	ID               string `json:"id"`
+	UserID           string `json:"userid"`
+	Torrent          string `json:"torrent"`
+	Points           string `json:"points"`
+	FreeDay          string `json:"freeDay"`
+	Auction          string `json:"auction"`
+	StartDate        *Time  `json:"startDate"`
+	EndDate          *Time  `json:"endDate"`
+	Status           string `json:"status"`
 }

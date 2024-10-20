@@ -79,7 +79,7 @@ func fetchSiteStatus(siteInstance site.Site, showTorrents bool, full bool, showS
 				brushSiteOption := strategy.GetBrushSiteOptions(siteInstance, util.Now())
 				scores := map[string]float64{}
 				for _, torrent := range siteTorrents {
-					scores[torrent.Id], _, _ = strategy.RateSiteTorrent(torrent, brushSiteOption)
+					scores[torrent.Id], _, _ = strategy.RateSiteTorrent(torrent, brushSiteOption, nil)
 				}
 				response.SiteTorrentScores = scores
 			}

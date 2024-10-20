@@ -98,10 +98,11 @@ func (m *Site) DownloadTorrentById(id string) (content []byte, filename string, 
 }
 
 func (m *Site) GetLatestTorrents(full bool) ([]*site.Torrent, error) {
-	modes := []string{TorrentSearchMode_Normal}
-	if full {
-		modes = append(modes, TorrentSearchMode_Adult)
-	}
+	modes := []string{TorrentSearchMode_Adult}
+	//modes := []string{TorrentSearchMode_Normal}
+	//if full {
+	//	modes = append(modes, TorrentSearchMode_Adult)
+	//}
 
 	var mergedTorrents []*site.Torrent
 	for _, mode := range modes {
@@ -228,27 +229,51 @@ func (m *Site) search(options ...TorrentSearchRequestOption) (list *TorrentList,
 func (m *Site) convertTorrents(list *TorrentList) []*site.Torrent {
 	var torrents []*site.Torrent
 	for _, torrent := range list.Data {
-		torrents = append(torrents, &site.Torrent{
-			Name:               torrent.Name,
-			Description:        torrent.Description,
-			Id:                 fmt.Sprintf("%s.%s", m.Name, torrent.Id),
-			InfoHash:           "",
-			DownloadUrl:        torrent.Id, // can't get download url in list, must call /api/torrent/genDlToken after
-			DownloadMultiplier: getMultiplier(downloadMultipliers, torrent.Status.Discount),
-			UploadMultiplier:   getMultiplier(uploadMultipliers, torrent.Status.Discount),
-			DiscountEndTime:    torrent.Status.DiscountEndTime.UnixWithDefault(-1),
-			Time:               torrent.CreateDate.Unix(),
-			Size:               torrent.Size.Value(),
-			IsSizeAccurate:     true,
-			Seeders:            torrent.Status.Seeders.Value(),
-			Leechers:           torrent.Status.Leechers.Value(),
-			Snatched:           0,
-			HasHnR:             false,
-			IsActive:           false, // TODO: maybe torrent.clientList[*].downloaded > 0?
-			Paid:               false,
-			Bought:             false,
-			Neutral:            false,
-		})
+		if len(strings.TrimSpace(torrent.Status.MallSingleFree.ID)) > 0 && torrent.Status.MallSingleFree.EndDate != nil {
+			torrents = append(torrents, &site.Torrent{
+				Name:               torrent.Name,
+				Description:        torrent.Description,
+				Id:                 fmt.Sprintf("%s.%s", m.Name, torrent.Id),
+				InfoHash:           "",
+				DownloadUrl:        torrent.Id, // can't get download url in list, must call /api/torrent/genDlToken after
+				DownloadMultiplier: getMultiplier(downloadMultipliers, "FREE"),
+				UploadMultiplier:   getMultiplier(uploadMultipliers, torrent.Status.Discount),
+				DiscountEndTime:    torrent.Status.MallSingleFree.EndDate.UnixWithDefault(-1),
+				Time:               torrent.CreateDate.Unix(),
+				Size:               torrent.Size.Value(),
+				IsSizeAccurate:     true,
+				Seeders:            torrent.Status.Seeders.Value(),
+				Leechers:           torrent.Status.Leechers.Value(),
+				Snatched:           0,
+				HasHnR:             false,
+				IsActive:           false, // TODO: maybe torrent.clientList[*].downloaded > 0?
+				Paid:               false,
+				Bought:             false,
+				Neutral:            false,
+			})
+		} else {
+			torrents = append(torrents, &site.Torrent{
+				Name:               torrent.Name,
+				Description:        torrent.Description,
+				Id:                 fmt.Sprintf("%s.%s", m.Name, torrent.Id),
+				InfoHash:           "",
+				DownloadUrl:        torrent.Id, // can't get download url in list, must call /api/torrent/genDlToken after
+				DownloadMultiplier: getMultiplier(downloadMultipliers, torrent.Status.Discount),
+				UploadMultiplier:   getMultiplier(uploadMultipliers, torrent.Status.Discount),
+				DiscountEndTime:    torrent.Status.DiscountEndTime.UnixWithDefault(-1),
+				Time:               torrent.CreateDate.Unix(),
+				Size:               torrent.Size.Value(),
+				IsSizeAccurate:     true,
+				Seeders:            torrent.Status.Seeders.Value(),
+				Leechers:           torrent.Status.Leechers.Value(),
+				Snatched:           0,
+				HasHnR:             false,
+				IsActive:           false, // TODO: maybe torrent.clientList[*].downloaded > 0?
+				Paid:               false,
+				Bought:             false,
+				Neutral:            false,
+			})
+		}
 	}
 
 	return torrents

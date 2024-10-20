@@ -52,6 +52,7 @@ type BrushClientOptionStruct struct {
 	MinRatio                float64
 	DefaultUploadSpeedLimit int64
 	MaxSlowTorrentCount     int64
+	MaxTorrentSize          int64
 }
 
 type AlgorithmAddTorrent struct {
@@ -178,7 +179,7 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 	}
 
 	for _, siteTorrent := range siteTorrents {
-		score, predictionUploadSpeed, _ := RateSiteTorrent(siteTorrent, siteOption)
+		score, predictionUploadSpeed, _ := RateSiteTorrent(siteTorrent, siteOption, clientOption)
 		if score > 0 {
 			candidateTorrent := candidateTorrentStruct{
 				Name:                  siteTorrent.Name,
@@ -522,8 +523,11 @@ func Decide(clientStatus *client.Status, clientTorrents []*client.Torrent, siteT
 	return
 }
 
-func RateSiteTorrent(siteTorrent *site.Torrent, siteOption *BrushSiteOptionStruct) (
+func RateSiteTorrent(siteTorrent *site.Torrent, siteOption *BrushSiteOptionStruct, clientOption *BrushClientOptionStruct) (
 	score float64, predictionUploadSpeed int64, note string) {
+	if siteTorrent.Name == "DSVR-1358 2024 2304p DMM WEB-DL AAC2.0 HFR VR H.264-MTeam" {
+		fmt.Printf("RateSiteTorrent调试", siteTorrent.Name)
+	}
 	if log.GetLevel() >= log.TraceLevel {
 		defer func() {
 			log.Tracef("rateSiteTorrent score=%0.0f name=%s, free=%t, rtime=%d, seeders=%d, leechers=%d, note=%s",
@@ -537,17 +541,39 @@ func RateSiteTorrent(siteTorrent *site.Torrent, siteOption *BrushSiteOptionStruc
 			)
 		}()
 	}
-	if siteTorrent.IsActive || siteTorrent.UploadMultiplier == 0 ||
-		(!siteOption.AllowHr && siteTorrent.HasHnR) ||
-		(!siteOption.AllowNoneFree && siteTorrent.DownloadMultiplier != 0) ||
-		(!siteOption.AllowPaid && siteTorrent.Paid && !siteTorrent.Bought) ||
-		siteTorrent.Size < siteOption.TorrentMinSizeLimit ||
-		siteTorrent.Size > siteOption.TorrentMaxSizeLimit ||
-		(siteTorrent.DiscountEndTime > 0 && siteTorrent.DiscountEndTime-siteOption.Now < 3600) ||
-		(!siteOption.AllowZeroSeeders && siteTorrent.Seeders == 0) {
-		score = 0
-		return
+	var maxTorrentSize int64 = 1024 * 1024 * 1024 * 1024
+	if clientOption != nil {
+		maxTorrentSize = clientOption.MaxTorrentSize
 	}
+	var scoreDecision = []bool{
+		siteTorrent.IsActive,
+		siteTorrent.UploadMultiplier == 0,
+		!siteOption.AllowHr && siteTorrent.HasHnR,
+		!siteOption.AllowNoneFree && siteTorrent.DownloadMultiplier != 0,
+		!siteOption.AllowPaid && siteTorrent.Paid && !siteTorrent.Bought,
+		siteTorrent.Size < siteOption.TorrentMinSizeLimit,
+		siteTorrent.Size > siteOption.TorrentMaxSizeLimit,
+		siteTorrent.DiscountEndTime > 0 && siteTorrent.DiscountEndTime-siteOption.Now < 3600,
+		!siteOption.AllowZeroSeeders && siteTorrent.Seeders == 0,
+		siteTorrent.Size > maxTorrentSize,
+	}
+	for i := 0; i < len(scoreDecision); i++ {
+		if scoreDecision[i] {
+			score = 0
+			return
+		}
+	}
+	//if siteTorrent.IsActive || siteTorrent.UploadMultiplier == 0 ||
+	//	(!siteOption.AllowHr && siteTorrent.HasHnR) ||
+	//	(!siteOption.AllowNoneFree && siteTorrent.DownloadMultiplier != 0) ||
+	//	(!siteOption.AllowPaid && siteTorrent.Paid && !siteTorrent.Bought) ||
+	//	siteTorrent.Size < siteOption.TorrentMinSizeLimit ||
+	//	siteTorrent.Size > siteOption.TorrentMaxSizeLimit ||
+	//	(siteTorrent.DiscountEndTime > 0 && siteTorrent.DiscountEndTime-siteOption.Now < 3600) ||
+	//	(!siteOption.AllowZeroSeeders && siteTorrent.Seeders == 0) {
+	//	score = 0
+	//	return
+	//}
 	if siteTorrent.MatchFiltersOr(siteOption.Excludes) {
 		score = 0
 		note = "brush excludes matches"
@@ -645,5 +671,6 @@ func GetBrushClientOptions(clientInstance client.Client) *BrushClientOptionStruc
 		MinRatio:                clientInstance.GetClientConfig().BrushMinRatio,
 		DefaultUploadSpeedLimit: clientInstance.GetClientConfig().BrushDefaultUploadSpeedLimitValue,
 		MaxSlowTorrentCount:     clientInstance.GetClientConfig().MaxSlowTorrentCount,
+		MaxTorrentSize:          clientInstance.GetClientConfig().MaxTorrentSize,
 	}
 }
