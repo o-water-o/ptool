@@ -41,6 +41,7 @@ type BrushSiteOptionStruct struct {
 	TorrentMaxSizeLimit     int64
 	Now                     int64
 	Excludes                []string
+	Includes                []string
 	AllowAddTorrents        int64
 }
 
@@ -582,6 +583,7 @@ func RateSiteTorrent(siteTorrent *site.Torrent, siteOption *BrushSiteOptionStruc
 	var (
 		score1 float64
 		score2 float64
+		score3 float64 = 0
 	)
 
 	if siteTorrent.Seeders > 1 {
@@ -590,7 +592,11 @@ func RateSiteTorrent(siteTorrent *site.Torrent, siteOption *BrushSiteOptionStruc
 	}
 	//种子大小 原始单位Bytes
 	score2 = float64(siteTorrent.Size) / (1024 * 1024 * 1024)
-	score = score1 + 0.1/score2
+	// 关键词加权重
+	if siteOption.Includes != nil && siteTorrent.MatchFiltersAnd(siteOption.Includes) {
+		score3 += 99
+	}
+	score = score1 + 0.1/score2 + score3
 	// 部分站点定期将旧种重新置顶免费。这类种子仍然可以获得很好的上传速度。
 	//if siteOption.Now-siteTorrent.Time <= 86400*30 {
 	//	if siteOption.Now-siteTorrent.Time >= 86400 {
@@ -658,6 +664,7 @@ func GetBrushSiteOptions(siteInstance site.Site, ts int64) *BrushSiteOptionStruc
 		AllowHr:                 siteInstance.GetSiteConfig().BrushAllowHr,
 		AllowZeroSeeders:        siteInstance.GetSiteConfig().BrushAllowZeroSeeders,
 		Excludes:                siteInstance.GetSiteConfig().BrushExcludes,
+		Includes:                siteInstance.GetSiteConfig().BrushIncludes,
 		Now:                     ts,
 	}
 }

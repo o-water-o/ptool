@@ -98,21 +98,32 @@ func (m *Site) DownloadTorrentById(id string) (content []byte, filename string, 
 }
 
 func (m *Site) GetLatestTorrents(full bool) ([]*site.Torrent, error) {
-	modes := []string{TorrentSearchMode_Adult}
-	//modes := []string{TorrentSearchMode_Normal}
-	//if full {
-	//	modes = append(modes, TorrentSearchMode_Adult)
-	//}
+	//modes := []string{TorrentSearchMode_Adult}
+	modes := []string{TorrentSearchMode_Normal}
+	if full {
+		modes = append(modes, TorrentSearchMode_Adult)
+	}
 
 	var mergedTorrents []*site.Torrent
 	for _, mode := range modes {
-		if list, err := m.search(WithMode(mode)); err != nil {
-			log.Errorf("search mode %s failed: %v", mode, err)
-			continue
-		} else {
-			torrents := m.convertTorrents(list)
-			mergedTorrents = append(mergedTorrents, torrents...)
+		pageNumRange := 2
+		if mode == TorrentSearchMode_Adult {
+			pageNumRange = 5
 		}
+		for pageNum := 1; pageNum < pageNumRange; pageNum++ {
+			reqFunc := func(r *TorrentSearchRequest) {
+				r.Mode = mode
+				r.PageNumber = int64(pageNum)
+			}
+			if list, err := m.search(reqFunc); err != nil {
+				log.Errorf("search mode %s failed: %v", mode, err)
+				continue
+			} else {
+				torrents := m.convertTorrents(list)
+				mergedTorrents = append(mergedTorrents, torrents...)
+			}
+		}
+
 	}
 
 	if len(mergedTorrents) == 0 {

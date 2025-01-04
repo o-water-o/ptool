@@ -164,6 +164,26 @@ func (torrent *Torrent) MatchFiltersOr(filters []string) bool {
 		return torrent.MatchFilter(filter)
 	})
 }
+func (torrent *Torrent) isAllTrue(data []bool) bool {
+	for _, item := range data {
+		if item == false {
+			return false
+		}
+	}
+	return true
+}
+func (torrent *Torrent) MatchFiltersAnd(filters []string) bool {
+	var nameResult, descResult []bool
+	if filters == nil || len(filters) == 0 {
+		return true
+	}
+	for _, filter := range filters {
+		nameResult = append(nameResult, util.ContainsI(torrent.Name, filter))
+		descResult = append(descResult, util.ContainsI(torrent.Description, filter))
+	}
+	return torrent.isAllTrue(nameResult) || torrent.isAllTrue(descResult)
+
+}
 
 // Matches if every list of filtersArray is successed with MatchFiltersOr().
 // If filtersArray is empty, return true.
